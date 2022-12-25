@@ -12,6 +12,58 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+var (
+	lookupStage  primitive.D
+	projectStage primitive.D
+)
+
+func init() {
+	lookupStage = bson.D{
+		{
+			Key: "$lookup",
+			Value: bson.D{
+				{
+					Key:   "from",
+					Value: "watchedMovies",
+				},
+				{
+					Key:   "localField",
+					Value: "_id",
+				},
+				{
+					Key:   "foreignField",
+					Value: "movieId",
+				},
+				{
+					Key:   "as",
+					Value: "watchedMovies",
+				},
+				{
+					Key: "pipeline",
+					Value: []bson.M{
+						{
+							"$match": bson.M{
+								"rate": bson.M{
+									"$gt": 0,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	projectStage = bson.D{{Key: "$project", Value: bson.M{
+		"name":        1,
+		"description": 1,
+		"date":        1,
+		"cover":       1,
+		"userId":      1,
+		"rate":        bson.M{"$avg": "$watchedMovies.rate"},
+	}}}
+}
+
 type MovieRepositoryImpl struct {
 	movieCollection *mongo.Collection
 	ctx             context.Context
@@ -22,12 +74,14 @@ func NewMovieRepository(movieCollection *mongo.Collection, ctx context.Context) 
 }
 
 func (repository *MovieRepositoryImpl) FindAllMovies(sortBy string, sortType int) ([]*models.Movie, error) {
-	var opts *options.FindOptions
-	if sortBy == "date" {
-		opts = options.Find().SetSort(bson.D{{Key: sortBy, Value: sortType}})
+	pipeline := []bson.D{lookupStage, projectStage}
+
+	if sortBy != "" {
+		sortStage := bson.D{{Key: "$sort", Value: bson.M{sortBy: sortType}}}
+		pipeline = []bson.D{lookupStage, projectStage, sortStage}
 	}
 
-	cursor, err := repository.movieCollection.Find(repository.ctx, bson.M{}, opts)
+	cursor, err := repository.movieCollection.Aggregate(repository.ctx, pipeline)
 	if err != nil {
 		return nil, err
 	}
@@ -58,10 +112,22 @@ func (repository *MovieRepositoryImpl) FindMovieById(id string) (*models.Movie, 
 	objectId, _ := primitive.ObjectIDFromHex(id)
 	var movie *models.Movie
 
-	if err := repository.movieCollection.FindOne(repository.ctx, bson.M{"_id": objectId}).Decode(&movie); err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, errors.New("Movie with the given id does not exist")
-		}
+	matchStage := bson.D{{Key: "$match", Value: bson.D{{Key: "_id", Value: objectId}}}}
+	cursor, err := repository.movieCollection.Aggregate(repository.ctx, mongo.Pipeline{matchStage, lookupStage, projectStage})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(repository.ctx)
+
+	if !cursor.Next(repository.ctx) {
+		return nil, errors.New("Movie with the given id does not exist")
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	if err = cursor.Decode(&movie); err != nil {
 		return nil, err
 	}
 

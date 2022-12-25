@@ -98,6 +98,7 @@ func (controller *MovieController) UpdateMovie(ctx *gin.Context) {
 
 	if movie.UserId != userObjectId {
 		ctx.JSON(http.StatusForbidden, gin.H{"message": "You do not have access to modify this movie"})
+		return
 	}
 
 	var request *models.UpdateMovieRequest
@@ -147,6 +148,7 @@ func (controller *MovieController) DeleteMovie(ctx *gin.Context) {
 
 	if movie.UserId != userObjectId {
 		ctx.JSON(http.StatusForbidden, gin.H{"message": "You do not have access to delete this movie"})
+		return
 	}
 
 	err = controller.movieRepository.DeleteMovie(id)

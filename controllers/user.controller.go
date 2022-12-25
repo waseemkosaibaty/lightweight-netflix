@@ -7,6 +7,7 @@ import (
 	"github.com/wkosaibaty/lightweight-netflix/models"
 	"github.com/wkosaibaty/lightweight-netflix/repositories"
 	"github.com/wkosaibaty/lightweight-netflix/utils"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type UserController struct {
@@ -24,7 +25,18 @@ func (controller *UserController) CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	user, err := controller.userRepository.CreateUser(request)
+	user, err := controller.userRepository.FindUserByEmail(request.Email)
+	if user != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "Email already exists"})
+		return
+	}
+
+	if err != mongo.ErrNoDocuments {
+		ctx.JSON(http.StatusBadGateway, gin.H{"message": err.Error()})
+		return
+	}
+
+	user, err = controller.userRepository.CreateUser(request)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return

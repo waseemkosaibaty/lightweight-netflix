@@ -20,19 +20,23 @@ var (
 	ctx         context.Context
 	mongoClient *mongo.Client
 
-	userCollection  *mongo.Collection
-	movieCollection *mongo.Collection
+	userCollection         *mongo.Collection
+	movieCollection        *mongo.Collection
+	watchedMovieCollection *mongo.Collection
 
-	userRepository  repositories.UserRepository
-	movieRepository repositories.MovieRepository
+	userRepository         repositories.UserRepository
+	movieRepository        repositories.MovieRepository
+	watchedMovieRepository repositories.WatchedMovieRepository
 
-	authController  controllers.AuthController
-	userController  controllers.UserController
-	movieController controllers.MovieController
+	authController         controllers.AuthController
+	userController         controllers.UserController
+	movieController        controllers.MovieController
+	watchedMovieController controllers.WatchedMovieController
 
-	authRoutes  routes.AuthRoutes
-	userRoutes  routes.UserRoutes
-	movieRoutes routes.MovieRoutes
+	authRoutes         routes.AuthRoutes
+	userRoutes         routes.UserRoutes
+	movieRoutes        routes.MovieRoutes
+	watchedMovieRoutes routes.WatchedMovieRoutes
 )
 
 func init() {
@@ -55,17 +59,21 @@ func init() {
 
 	userCollection = mongoClient.Database("lightweight_netflix").Collection("users")
 	movieCollection = mongoClient.Database("lightweight_netflix").Collection("movies")
+	watchedMovieCollection = mongoClient.Database("lightweight_netflix").Collection("watchedMovies")
 
 	userRepository = repositories.NewUserRepository(userCollection, ctx)
 	movieRepository = repositories.NewMovieRepository(movieCollection, ctx)
+	watchedMovieRepository = repositories.NewWatchedMovieRepository(watchedMovieCollection, ctx)
 
 	authController = controllers.NewAuthController(userRepository)
 	userController = controllers.NewUserController(userRepository)
 	movieController = controllers.NewMovieController(movieRepository)
+	watchedMovieController = controllers.NewWatchedMovieController(watchedMovieRepository, movieRepository)
 
 	authRoutes = routes.NewAuthRoutes(authController)
 	userRoutes = routes.NewUserRoutes(userController)
 	movieRoutes = routes.NewMovieRoutes(movieController)
+	watchedMovieRoutes = routes.NewWatchedMovieRoutes(watchedMovieController)
 
 	server = gin.Default()
 }
@@ -81,6 +89,7 @@ func main() {
 	authRoutes.AddAuthRoutes(router)
 	userRoutes.AddUserRoutes(router)
 	movieRoutes.AddMovieRoutes(router)
+	watchedMovieRoutes.AddWatchedMovieRoutes(router)
 
 	log.Fatal(server.Run(":" + configuration.Port))
 }
