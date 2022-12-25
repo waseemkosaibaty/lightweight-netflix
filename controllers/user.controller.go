@@ -1,24 +1,20 @@
 package controllers
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/wkosaibaty/lightweight-netflix/models"
-	"github.com/wkosaibaty/lightweight-netflix/services"
+	"github.com/wkosaibaty/lightweight-netflix/repositories"
 	"github.com/wkosaibaty/lightweight-netflix/utils"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type UserController struct {
-	userService services.UserService
-	ctx         context.Context
-	collection  *mongo.Collection
+	userRepository repositories.UserRepository
 }
 
-func NewUserController(userService services.UserService, ctx context.Context, collection *mongo.Collection) UserController {
-	return UserController{userService, ctx, collection}
+func NewUserController(userRepository repositories.UserRepository) UserController {
+	return UserController{userRepository}
 }
 
 func (controller *UserController) CreateUser(ctx *gin.Context) {
@@ -28,7 +24,7 @@ func (controller *UserController) CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	user, err := controller.userService.CreateUser(request)
+	user, err := controller.userRepository.CreateUser(request)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return

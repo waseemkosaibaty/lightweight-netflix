@@ -12,6 +12,7 @@ type Config struct {
 	AccessTokenPrivateKey string        `mapstructure:"ACCESS_TOKEN_PRIVATE_KEY"`
 	AccessTokenPublicKey  string        `mapstructure:"ACCESS_TOKEN_PUBLIC_KEY"`
 	AccessTokenExpiresIn  time.Duration `mapstructure:"ACCESS_TOKEN_EXPIRED_IN"`
+	ImagesPath            string        `mapstructure:"IMAGES_PATH"`
 }
 
 func LoadConfig(path string) (config Config, err error) {

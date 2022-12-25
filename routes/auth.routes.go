@@ -3,7 +3,6 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/wkosaibaty/lightweight-netflix/controllers"
-	"github.com/wkosaibaty/lightweight-netflix/services"
 )
 
 type AuthRoutes struct {
@@ -14,7 +13,7 @@ func NewAuthRoutes(authController controllers.AuthController) AuthRoutes {
 	return AuthRoutes{authController}
 }
 
-func (authRoutes *AuthRoutes) AddAuthRoutes(rg *gin.RouterGroup, userService services.UserService) {
+func (authRoutes *AuthRoutes) AddAuthRoutes(rg *gin.RouterGroup) {
 	router := rg.Group("/auth")
 	router.POST("/", authRoutes.authController.Login)
 }

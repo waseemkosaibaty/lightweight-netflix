@@ -1,4 +1,4 @@
-package services
+package repositories
 
 import (
 	"context"
@@ -12,27 +12,27 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type UserServiceImpl struct {
+type UserRepositoryImpl struct {
 	collection *mongo.Collection
 	ctx        context.Context
 }
 
-func NewUserService(collection *mongo.Collection, ctx context.Context) UserService {
-	return &UserServiceImpl{collection, ctx}
+func NewUserRepository(collection *mongo.Collection, ctx context.Context) UserRepository {
+	return &UserRepositoryImpl{collection, ctx}
 }
 
-func (service *UserServiceImpl) FindUserByEmail(email string) (*models.User, error) {
+func (repository *UserRepositoryImpl) FindUserByEmail(email string) (*models.User, error) {
 	var user *models.User
 
 	query := bson.M{"email": strings.ToLower(strings.Trim(email, " "))}
-	if err := service.collection.FindOne(service.ctx, query).Decode(&user); err != nil {
+	if err := repository.collection.FindOne(repository.ctx, query).Decode(&user); err != nil {
 		return nil, err
 	}
 
 	return user, nil
 }
 
-func (service *UserServiceImpl) CreateUser(request *models.RegisterRequest) (*models.User, error) {
+func (repository *UserRepositoryImpl) CreateUser(request *models.RegisterRequest) (*models.User, error) {
 	request.Email = strings.ToLower(strings.Trim(request.Email, " "))
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
@@ -41,7 +41,7 @@ func (service *UserServiceImpl) CreateUser(request *models.RegisterRequest) (*mo
 	}
 	request.Password = string(hashedPassword)
 
-	result, err := service.collection.InsertOne(service.ctx, &request)
+	result, err := repository.collection.InsertOne(repository.ctx, &request)
 	if err != nil {
 		if er, ok := err.(mongo.WriteException); ok && er.WriteErrors[0].Code == 11000 {
 			return nil, errors.New("Email already exists")
@@ -50,12 +50,12 @@ func (service *UserServiceImpl) CreateUser(request *models.RegisterRequest) (*mo
 	}
 
 	index := mongo.IndexModel{Keys: bson.M{"email": 1}, Options: options.Index().SetUnique(true)}
-	if _, err := service.collection.Indexes().CreateOne(service.ctx, index); err != nil {
+	if _, err := repository.collection.Indexes().CreateOne(repository.ctx, index); err != nil {
 		return nil, errors.New("Could not create index for email")
 	}
 
 	var user *models.User
-	err = service.collection.FindOne(service.ctx, bson.M{"_id": result.InsertedID}).Decode(&user)
+	err = repository.collection.FindOne(repository.ctx, bson.M{"_id": result.InsertedID}).Decode(&user)
 	if err != nil {
 		return nil, err
 	}

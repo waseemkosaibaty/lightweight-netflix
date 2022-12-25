@@ -2,7 +2,7 @@ package utils
 
 import (
 	"encoding/base64"
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -15,12 +15,12 @@ func CreateJWT(user *models.User) (string, error) {
 
 	privateKey, err := base64.StdEncoding.DecodeString(config.AccessTokenPrivateKey)
 	if err != nil {
-		return "", fmt.Errorf("could not decode key: %w", err)
+		return "", err
 	}
 
 	key, err := jwt.ParseRSAPrivateKeyFromPEM(privateKey)
 	if err != nil {
-		return "", fmt.Errorf("create: parse key: %w", err)
+		return "", err
 	}
 
 	now := time.Now().UTC()
@@ -32,8 +32,40 @@ func CreateJWT(user *models.User) (string, error) {
 
 	token, err := jwt.NewWithClaims(jwt.SigningMethodRS256, claims).SignedString(key)
 	if err != nil {
-		return "", fmt.Errorf("create: sign token: %w", err)
+		return "", err
 	}
 
 	return token, nil
+}
+
+func ValidateToken(token string) (interface{}, error) {
+	config, _ := config.LoadConfig(".")
+
+	publicKey, err := base64.StdEncoding.DecodeString(config.AccessTokenPublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := jwt.ParseRSAPublicKeyFromPEM(publicKey)
+	if err != nil {
+		return "", err
+	}
+
+	parsedToken, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, errors.New("Invalid access token")
+		}
+		return key, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	claims, ok := parsedToken.Claims.(jwt.MapClaims)
+	if !ok || !parsedToken.Valid {
+		return nil, errors.New("Invalid access token")
+	}
+
+	return claims["sub"], nil
 }

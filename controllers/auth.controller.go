@@ -1,25 +1,22 @@
 package controllers
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/wkosaibaty/lightweight-netflix/models"
-	"github.com/wkosaibaty/lightweight-netflix/services"
+	"github.com/wkosaibaty/lightweight-netflix/repositories"
 	"github.com/wkosaibaty/lightweight-netflix/utils"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthController struct {
-	userService services.UserService
-	ctx         context.Context
-	collection  *mongo.Collection
+	userRepository repositories.UserRepository
 }
 
-func NewAuthController(userService services.UserService, ctx context.Context, collection *mongo.Collection) AuthController {
-	return AuthController{userService, ctx, collection}
+func NewAuthController(userRepository repositories.UserRepository) AuthController {
+	return AuthController{userRepository}
 }
 
 func (controller *AuthController) Login(ctx *gin.Context) {
@@ -31,7 +28,7 @@ func (controller *AuthController) Login(ctx *gin.Context) {
 		return
 	}
 
-	user, err := controller.userService.FindUserByEmail(request.Email)
+	user, err := controller.userRepository.FindUserByEmail(request.Email)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			ctx.JSON(http.StatusBadRequest, errorMessage)

@@ -8,8 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/wkosaibaty/lightweight-netflix/config"
 	"github.com/wkosaibaty/lightweight-netflix/controllers"
+	"github.com/wkosaibaty/lightweight-netflix/repositories"
 	"github.com/wkosaibaty/lightweight-netflix/routes"
-	"github.com/wkosaibaty/lightweight-netflix/services"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -20,15 +20,19 @@ var (
 	ctx         context.Context
 	mongoClient *mongo.Client
 
-	userCollection *mongo.Collection
+	userCollection  *mongo.Collection
+	movieCollection *mongo.Collection
 
-	userService services.UserService
+	userRepository  repositories.UserRepository
+	movieRepository repositories.MovieRepository
 
-	authController controllers.AuthController
-	userController controllers.UserController
+	authController  controllers.AuthController
+	userController  controllers.UserController
+	movieController controllers.MovieController
 
-	authRoutes routes.AuthRoutes
-	userRoutes routes.UserRoutes
+	authRoutes  routes.AuthRoutes
+	userRoutes  routes.UserRoutes
+	movieRoutes routes.MovieRoutes
 )
 
 func init() {
@@ -36,8 +40,6 @@ func init() {
 	if err != nil {
 		log.Fatal("Could not load environment variables", err)
 	}
-
-	server = gin.Default()
 
 	ctx = context.TODO()
 
@@ -52,14 +54,20 @@ func init() {
 	fmt.Println("Connected to MongoDB...")
 
 	userCollection = mongoClient.Database("lightweight_netflix").Collection("users")
+	movieCollection = mongoClient.Database("lightweight_netflix").Collection("movies")
 
-	userService = services.NewUserService(userCollection, ctx)
+	userRepository = repositories.NewUserRepository(userCollection, ctx)
+	movieRepository = repositories.NewMovieRepository(movieCollection, ctx)
 
-	authController = controllers.NewAuthController(userService, ctx, userCollection)
-	userController = controllers.NewUserController(userService, ctx, userCollection)
+	authController = controllers.NewAuthController(userRepository)
+	userController = controllers.NewUserController(userRepository)
+	movieController = controllers.NewMovieController(movieRepository)
 
 	authRoutes = routes.NewAuthRoutes(authController)
 	userRoutes = routes.NewUserRoutes(userController)
+	movieRoutes = routes.NewMovieRoutes(movieController)
+
+	server = gin.Default()
 }
 
 func main() {
@@ -67,9 +75,12 @@ func main() {
 
 	defer mongoClient.Disconnect(ctx)
 
+	server.Static("/public", "./public")
+
 	router := server.Group("/api")
-	authRoutes.AddAuthRoutes(router, userService)
-	userRoutes.AddUserRoutes(router, userService)
+	authRoutes.AddAuthRoutes(router)
+	userRoutes.AddUserRoutes(router)
+	movieRoutes.AddMovieRoutes(router)
 
 	log.Fatal(server.Run(":" + configuration.Port))
 }
